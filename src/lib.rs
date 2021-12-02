@@ -14,11 +14,11 @@
 //!
 //! ```no_run
 //! use reqwest::Client;
-//! use reqwest_middleware::ClientBuilder;
+//! use reqwest_middleware::{ClientBuilder, Result};
 //! use reqwest_middleware_cache::{managers::CACacheManager, Cache, CacheMode};
 //!
 //! #[tokio::main]
-//! async fn main() -> reqwest::Result<()> {
+//! async fn main() -> Result<()> {
 //!     let client = ClientBuilder::new(Client::new())
 //!         .with(Cache {
 //!             mode: CacheMode::Default,
@@ -28,8 +28,7 @@
 //!     client
 //!         .get("https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching")
 //!         .send()
-//!         .await
-//!         .unwrap();
+//!         .await?;
 //!     Ok(())
 //! }
 //! ```
@@ -177,7 +176,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
         mut cached_res: Response,
         mut policy: CachePolicy,
         next: Next<'_>,
-        ext: &'a mut Extensions,
+        extensions: &mut Extensions,
     ) -> Result<Response> {
         let before_req = policy.before_request(&req, SystemTime::now());
         match before_req {
@@ -199,7 +198,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
                 "Request object is not clonable. Are you passing a streaming body?".to_string()
             ))
         })?;
-        match self.remote_fetch(req, next, ext).await {
+        match self.remote_fetch(req, next, extensions).await {
             Ok(cond_res) => {
                 if cond_res.status().is_server_error() && must_revalidate(&cached_res) {
                     //   111 Revalidation failed
@@ -336,7 +335,7 @@ fn get_warning_code(res: &Response) -> Option<usize> {
 }
 
 fn update_request_headers(parts: http::request::Parts, req: &mut Request) -> Result<()> {
-    let headers = parts.headers.clone();
+    let headers = parts.headers;
     for header in headers.iter() {
         req.headers_mut().insert(
             HeaderName::from_lowercase(header.0.clone().as_str().to_lowercase().as_bytes())

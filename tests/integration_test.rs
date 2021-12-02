@@ -1,10 +1,10 @@
 use mockito::mock;
 use reqwest::{Client, Method, Request, Url};
-use reqwest_middleware::ClientBuilder;
+use reqwest_middleware::{ClientBuilder, Result};
 use reqwest_middleware_cache::{managers::CACacheManager, Cache, CacheManager, CacheMode};
 
 #[tokio::test]
-async fn default_mode() -> reqwest::Result<()> {
+async fn default_mode() -> Result<()> {
     let m = mock("GET", "/")
         .with_status(200)
         .with_header("cache-control", "max-age=86400, public")
@@ -28,7 +28,7 @@ async fn default_mode() -> reqwest::Result<()> {
         .build();
 
     // Cold pass to load cache
-    client.get(url).send().await.unwrap();
+    client.get(url).send().await?;
     m.assert();
 
     // Try to load cached object
