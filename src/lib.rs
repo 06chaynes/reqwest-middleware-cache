@@ -35,14 +35,14 @@
 
 use std::time::SystemTime;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use http::{
     header::{HeaderName, CACHE_CONTROL},
     HeaderValue, Method,
 };
 use http_cache_semantics::{AfterResponse, BeforeRequest, CachePolicy};
 use reqwest::{Request, Response};
-use reqwest_middleware::{Error, Middleware, Next, Result};
+use reqwest_middleware::{Error, Middleware, Next};
 use task_local_extensions::Extensions;
 
 /// Backend cache managers, cacache is the default.
@@ -140,11 +140,8 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
                     .conditional_fetch(req, res, policy, next, extensions)
                     .await?)
             } else if self.mode == CacheMode::NoCache {
-                req.headers_mut().insert(
-                    CACHE_CONTROL,
-                    HeaderValue::from_str("no-cache")
-                        .expect("Unable to insert cache-control header"),
-                );
+                req.headers_mut()
+                    .insert(CACHE_CONTROL, HeaderValue::from_str("no-cache")?);
                 Ok(self
                     .conditional_fetch(req, res, policy, next, extensions)
                     .await?)
@@ -162,8 +159,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
             // ENOTCACHED
             let err_res = http::Response::builder()
                 .status(http::StatusCode::GATEWAY_TIMEOUT)
-                .body("")
-                .expect("Unable to build ENOTCACHED response");
+                .body("")?;
             Ok(err_res.into())
         } else {
             Ok(self.remote_fetch(req, next, extensions).await?)
@@ -216,13 +212,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
                 } else if cond_res.status() == http::StatusCode::NOT_MODIFIED {
                     let mut res = http::Response::builder()
                         .status(cond_res.status())
-                        .body(
-                            cached_res
-                                .text()
-                                .await
-                                .expect("Unable to get cached response body"),
-                        )
-                        .expect("Unable to build ENOTCACHED response");
+                        .body(cached_res.text().await?)?;
                     for (key, value) in cond_res.headers() {
                         res.headers_mut().append(key, value.clone());
                     }
@@ -338,8 +328,7 @@ fn update_request_headers(parts: http::request::Parts, req: &mut Request) -> Res
     let headers = parts.headers;
     for header in headers.iter() {
         req.headers_mut().insert(
-            HeaderName::from_lowercase(header.0.clone().as_str().to_lowercase().as_bytes())
-                .expect("Unable to set header from part"),
+            HeaderName::from_lowercase(header.0.clone().as_str().to_lowercase().as_bytes())?,
             header.1.clone(),
         );
     }
@@ -385,7 +374,7 @@ impl<T: CacheManager + 'static + Send + Sync> Middleware for Cache<T> {
         req: Request,
         extensions: &mut Extensions,
         next: Next<'_>,
-    ) -> Result<Response> {
+    ) -> reqwest_middleware::Result<Response> {
         let res = self.run(req, next, extensions).await?;
         Ok(res)
     }
@@ -394,13 +383,13 @@ impl<T: CacheManager + 'static + Send + Sync> Middleware for Cache<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use http::{HeaderValue, Response};
-    use reqwest::Result;
     use std::str::FromStr;
 
     #[tokio::test]
     async fn can_get_warning_code() -> Result<()> {
-        let url = reqwest::Url::from_str("https://example.com").unwrap();
+        let url = reqwest::Url::from_str("https://example.com")?;
         let mut res = reqwest::Response::from(Response::new(""));
         add_warning(&mut res, &url, 111, "Revalidation failed");
         let code = get_warning_code(&res).unwrap();
@@ -409,13 +398,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn can_check_revalidate() {
+    async fn can_check_revalidate() -> Result<()> {
         let mut res = Response::new("");
         res.headers_mut().append(
             "Cache-Control",
-            HeaderValue::from_str("max-age=1733992, must-revalidate").unwrap(),
+            HeaderValue::from_str("max-age=1733992, must-revalidate")?,
         );
         let check = must_revalidate(&res.into());
-        assert!(check, "{}", true)
+        assert!(check, "{}", true);
+        Ok(())
     }
 }
