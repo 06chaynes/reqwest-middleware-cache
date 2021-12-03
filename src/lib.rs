@@ -37,7 +37,7 @@ use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 use http::{
-    header::{HeaderName, CACHE_CONTROL},
+    header::CACHE_CONTROL,
     HeaderValue, Method,
 };
 use http_cache_semantics::{AfterResponse, BeforeRequest, CachePolicy};
@@ -177,7 +177,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
         let before_req = policy.before_request(&req, SystemTime::now());
         match before_req {
             BeforeRequest::Fresh(parts) => {
-                update_response_headers(parts, &mut cached_res)?;
+                update_response_headers(parts, &mut cached_res);
                 return Ok(cached_res);
             }
             BeforeRequest::Stale {
@@ -185,7 +185,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
                 matches,
             } => {
                 if matches {
-                    update_request_headers(parts, &mut req)?;
+                    update_request_headers(parts, &mut req);
                 }
             }
         }
@@ -222,11 +222,11 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
                     match after_res {
                         AfterResponse::Modified(new_policy, parts) => {
                             policy = new_policy;
-                            update_response_headers(parts, &mut converted)?;
+                            update_response_headers(parts, &mut converted);
                         }
                         AfterResponse::NotModified(new_policy, parts) => {
                             policy = new_policy;
-                            update_response_headers(parts, &mut converted)?;
+                            update_response_headers(parts, &mut converted);
                         }
                     }
                     let res = self
@@ -275,14 +275,14 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
         &'a self,
         req: Request,
         next: Next<'a>,
-        mut ext: &'a mut Extensions,
+        extensions: &mut Extensions,
     ) -> Result<Response> {
         let copied_req = req.try_clone().ok_or_else(|| {
             Error::Middleware(anyhow!(
                 "Request object is not clonable. Are you passing a streaming body?".to_string()
             ))
         })?;
-        let res = next.run(req, &mut ext).await?;
+        let res = next.run(req, extensions).await?;
         let is_method_get_head =
             copied_req.method() == Method::GET || copied_req.method() == Method::HEAD;
         let policy = CachePolicy::new(&copied_req, &res);
@@ -324,22 +324,17 @@ fn get_warning_code(res: &Response) -> Option<usize> {
     })
 }
 
-fn update_request_headers(parts: http::request::Parts, req: &mut Request) -> Result<()> {
+fn update_request_headers(parts: http::request::Parts, req: &mut Request) {
     let headers = parts.headers;
     for header in headers.iter() {
-        req.headers_mut().insert(
-            HeaderName::from_lowercase(header.0.clone().as_str().to_lowercase().as_bytes())?,
-            header.1.clone(),
-        );
+        req.headers_mut().insert(header.0.clone(), header.1.clone());
     }
-    Ok(())
 }
 
-fn update_response_headers(parts: http::response::Parts, res: &mut Response) -> Result<()> {
+fn update_response_headers(parts: http::response::Parts, res: &mut Response) {
     for header in parts.headers.iter() {
         res.headers_mut().insert(header.0.clone(), header.1.clone());
     }
-    Ok(())
 }
 
 fn add_warning(res: &mut Response, uri: &reqwest::Url, code: usize, message: &str) {
