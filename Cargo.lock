@@ -1253,7 +1253,6 @@ dependencies = [
  "async-trait",
  "bincode",
  "cacache",
- "futures",
  "http",
  "http-cache-semantics",
  "httpdate",
@@ -1261,7 +1260,6 @@ dependencies = [
  "reqwest",
  "reqwest-middleware",
  "serde",
- "serde_json",
  "task-local-extensions",
  "tokio",
 ]

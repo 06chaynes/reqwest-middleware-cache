@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/06chaynes/reqwest-middleware-cache/actions/workflows/rust.yml/badge.svg)](https://github.com/06chaynes/reqwest-middleware-cache/actions/workflows/rust.yml) ![crates.io](https://img.shields.io/crates/v/reqwest-middleware-cache.svg)
 
-A caching middleware for [reqwest](https://github.com/seanmonstar/reqwest) that follows HTTP caching rules, thanks to [http-cache-semantics](https://github.com/kornelski/rusty-http-cache-semantics). By default it uses [cacache](https://github.com/zkat/cacache-rs) as the backend cache manager. Uses [reqwest-middleware](https://github.com/TrueLayer/reqwest-middleware) for middleware support in reqwest.
+A caching middleware for [reqwest](https://github.com/seanmonstar/reqwest) that follows HTTP caching rules, thanks to [http-cache-semantics](https://github.com/kornelski/rusty-http-cache-semantics). By default it uses [cacache](https://github.com/zkat/cacache-rs) as the backend cache manager. Uses [reqwest-middleware](https://github.com/TrueLayer/reqwest-middleware) for middleware support.
 
 ## Install
 
