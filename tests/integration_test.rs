@@ -1,6 +1,7 @@
+use anyhow::Result;
 use mockito::mock;
 use reqwest::{Client, Method, Request, Url};
-use reqwest_middleware::{ClientBuilder, Result};
+use reqwest_middleware::ClientBuilder;
 use reqwest_middleware_cache::{managers::CACacheManager, Cache, CacheManager, CacheMode};
 
 #[tokio::test]
@@ -14,10 +15,10 @@ async fn default_mode() -> Result<()> {
     let manager = CACacheManager::default();
     let path = manager.path.clone();
     let key = format!("GET:{}", &url);
-    let req = Request::new(Method::GET, Url::parse(&url).unwrap());
+    let req = Request::new(Method::GET, Url::parse(&url)?);
 
     // Make sure the record doesn't already exist
-    manager.delete(&req).await.unwrap();
+    manager.delete(&req).await?;
 
     // Construct reqwest client with cache defaults
     let client = ClientBuilder::new(Client::new())
