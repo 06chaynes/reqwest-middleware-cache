@@ -1262,6 +1262,7 @@ dependencies = [
  "serde",
  "task-local-extensions",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -1654,6 +1655,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]
