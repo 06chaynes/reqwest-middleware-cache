@@ -53,7 +53,7 @@ impl TryFrom<Version> for HttpVersion {
             Version::HTTP_11 => HttpVersion::Http11,
             Version::HTTP_2 => HttpVersion::H2,
             Version::HTTP_3 => HttpVersion::H3,
-            _ => Err(anyhow!("Unknown HTTP version"))?,
+            _ => return Err(anyhow!("Unknown HTTP version")),
         })
     }
 }
@@ -158,7 +158,7 @@ impl CacheManager for CACacheManager {
         let mut ret_res = http::Response::builder()
             .status(status)
             .url(url)
-            .version(version.into())
+            .version(version)
             .body(data.response.body)?;
         for header in headers {
             ret_res
