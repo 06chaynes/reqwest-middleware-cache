@@ -8,13 +8,6 @@ A caching middleware for [reqwest](https://github.com/seanmonstar/reqwest) that 
 
 ## Install
 
-Cargo.toml
-
-```toml
-[dependencies]
-reqwest-middleware-cache = "0.1.0"
-```
-
 With [cargo add](https://github.com/killercup/cargo-edit#Installation) installed :
 
 ```sh
