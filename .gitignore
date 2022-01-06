@@ -1,3 +1,4 @@
 /target
 **/*.rs.bk
 /reqwest-cacache
+/.idea
