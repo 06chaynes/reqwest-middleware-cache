@@ -1,15 +1,17 @@
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 
 use crate::CacheManager;
 
+use anyhow::{anyhow, Result};
+use http::version::Version;
 use http_cache_semantics::CachePolicy;
 use reqwest::{
     header::{HeaderName, HeaderValue},
-    Request, Response,
+    Request, Response, ResponseBuilderExt,
 };
 use serde::{Deserialize, Serialize};
-
-type Result<T> = std::result::Result<T, anyhow::Error>;
+use url::Url;
 
 /// Implements [`CacheManager`] with [`cacache`](https://github.com/zkat/cacache-rs) as the backend.
 #[derive(Debug, Clone)]
@@ -26,6 +28,48 @@ impl Default for CACacheManager {
     }
 }
 
+// HTTP version enum in the http crate does not support serde, hence the modified copy.
+#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
+enum HttpVersion {
+    #[serde(rename = "HTTP/0.9")]
+    Http09,
+    #[serde(rename = "HTTP/1.0")]
+    Http10,
+    #[serde(rename = "HTTP/1.1")]
+    Http11,
+    #[serde(rename = "HTTP/2.0")]
+    H2,
+    #[serde(rename = "HTTP/3.0")]
+    H3,
+}
+
+impl TryFrom<Version> for HttpVersion {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Version) -> Result<Self> {
+        Ok(match value {
+            Version::HTTP_09 => HttpVersion::Http09,
+            Version::HTTP_10 => HttpVersion::Http10,
+            Version::HTTP_11 => HttpVersion::Http11,
+            Version::HTTP_2 => HttpVersion::H2,
+            Version::HTTP_3 => HttpVersion::H3,
+            _ => Err(anyhow!("Unknown HTTP version"))?,
+        })
+    }
+}
+
+impl From<HttpVersion> for Version {
+    fn from(value: HttpVersion) -> Self {
+        match value {
+            HttpVersion::Http09 => Version::HTTP_09,
+            HttpVersion::Http10 => Version::HTTP_10,
+            HttpVersion::Http11 => Version::HTTP_11,
+            HttpVersion::H2 => Version::HTTP_2,
+            HttpVersion::H3 => Version::HTTP_3,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct Store {
     response: StoredResponse,
@@ -36,6 +80,9 @@ struct Store {
 struct StoredResponse {
     body: Vec<u8>,
     headers: HashMap<String, String>,
+    status: u16,
+    url: Url,
+    version: HttpVersion,
 }
 
 async fn to_store(res: Response, policy: CachePolicy) -> Result<Store> {
@@ -43,15 +90,28 @@ async fn to_store(res: Response, policy: CachePolicy) -> Result<Store> {
     for header in res.headers() {
         headers.insert(header.0.as_str().to_owned(), header.1.to_str()?.to_owned());
     }
+    let status = res.status().as_u16();
+    let url = res.url().clone();
+    let version = res.version().try_into()?;
     let body: Vec<u8> = res.bytes().await?.to_vec();
     Ok(Store {
-        response: StoredResponse { body, headers },
+        response: StoredResponse {
+            body,
+            headers,
+            status,
+            url,
+            version,
+        },
         policy,
     })
 }
 
 fn from_store(store: &Store) -> Result<Response> {
-    let mut res = http::Response::builder().body(store.response.body.clone())?;
+    let mut res = http::Response::builder()
+        .status(store.response.status)
+        .url(store.response.url.clone())
+        .version(store.response.version.into())
+        .body(store.response.body.clone())?;
     for header in &store.response.headers {
         res.headers_mut().insert(
             HeaderName::from_lowercase(header.0.clone().as_str().to_lowercase().as_bytes())?,
@@ -89,6 +149,7 @@ impl CacheManager for CACacheManager {
     // TODO - This needs some reviewing.
     async fn put(&self, req: &Request, res: Response, policy: CachePolicy) -> Result<Response> {
         let status = res.status();
+        let url = res.url().clone();
         let version = res.version();
         let headers = res.headers().clone();
         let data = to_store(res, policy).await?;
@@ -96,6 +157,8 @@ impl CacheManager for CACacheManager {
         cacache::write(&self.path, &req_key(req), bytes).await?;
         let mut ret_res = http::Response::builder()
             .status(status)
+            .url(url)
+            .version(version.into())
             .body(data.response.body)?;
         for header in headers {
             ret_res
