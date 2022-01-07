@@ -191,7 +191,7 @@ impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
         }
         let copied_req = req.try_clone().ok_or_else(|| {
             Error::Middleware(anyhow!(
-                "Request object is not clonable. Are you passing a streaming body?".to_string()
+                "Request object is not cloneable. Are you passing a streaming body?".to_string()
             ))
         })?;
         match self.remote_fetch(req, next, extensions).await {
