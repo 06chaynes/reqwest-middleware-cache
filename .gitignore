@@ -2,3 +2,4 @@
 **/*.rs.bk
 /reqwest-cacache
 /.idea
+Cargo.lock
