@@ -89,19 +89,19 @@ pub enum CacheMode {
 
 /// Caches requests according to http spec
 #[derive(Debug, Clone)]
-pub struct Cache<T: CacheManager + Send + Sync + 'static> {
+pub struct Cache<T: CacheManager> {
     /// Determines the manager behavior
     pub mode: CacheMode,
     /// Manager instance that implements the CacheManager trait
     pub cache_manager: T,
 }
 
-impl<T: CacheManager + Send + Sync + 'static> Cache<T> {
+impl<T: CacheManager> Cache<T> {
     /// Called by the Reqwest middleware handle method when a request is made.
-    pub async fn run<'a>(
-        &'a self,
+    pub async fn run(
+        &self,
         mut req: Request,
-        next: Next<'a>,
+        next: Next<'_>,
         extensions: &mut Extensions,
     ) -> Result<Response> {
         let is_cacheable = (req.method() == Method::GET || req.method() == Method::HEAD)
