@@ -1,5 +1,7 @@
 # reqwest-middleware-cache
 
+> **NOTE**: This crate is deprecated in favor of [`http-cache`](https://github.com/06chaynes/http-cache).
+
 [![Rust](https://github.com/06chaynes/reqwest-middleware-cache/actions/workflows/rust.yml/badge.svg)](https://github.com/06chaynes/reqwest-middleware-cache/actions/workflows/rust.yml)
 ![crates.io](https://img.shields.io/crates/v/reqwest-middleware-cache.svg)
 [![Docs.rs](https://docs.rs/reqwest-middleware-cache/badge.svg)](https://docs.rs/reqwest-middleware-cache)
